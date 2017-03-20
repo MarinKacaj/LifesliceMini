@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">LifesliceMini</string>
+    <string name="submit_tag_query">Next</string>
+
+    <string name="first_tab_title">A</string>
+    <string name="second_tab_title">B</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>
