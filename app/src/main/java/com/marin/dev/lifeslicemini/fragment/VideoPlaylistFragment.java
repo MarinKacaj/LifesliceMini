@@ -2,6 +2,7 @@ package com.marin.dev.lifeslicemini.fragment;
 
 import android.Manifest;
 import android.content.Context;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -13,16 +14,30 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.google.android.exoplayer2.DefaultLoadControl;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.LoadControl;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.extractor.ExtractorsFactory;
+import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.MergingMediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelector;
 import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
 import com.google.android.exoplayer2.upstream.BandwidthMeter;
+import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
+import com.google.android.exoplayer2.util.Util;
 import com.marin.dev.lifeslicemini.LifesliceMiniApp;
 import com.marin.dev.lifeslicemini.R;
 import com.marin.dev.lifeslicemini.adapter.UserVideoAdapter;
@@ -31,11 +46,12 @@ import com.marin.dev.lifeslicemini.domain.intermediate.UserVideoListDataResponse
 import com.marin.dev.lifeslicemini.service.UserVideoService;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+import butterknife.BindString;
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnItemClick;
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.RuntimePermissions;
 import retrofit2.Call;
@@ -53,15 +69,19 @@ public class VideoPlaylistFragment extends Fragment {
     private LifesliceMiniApp app;
     private UserVideoAdapter userVideoAdapter;
     private List<UserVideo> userVideos = new ArrayList<>();
+    private SimpleExoPlayer videoPlayer;
 
     @BindView(R.id.empty_state)
     View emptyState;
     @BindView(R.id.content)
     View content;
     @BindView(R.id.video_player)
-    SimpleExoPlayerView videoPlayer;
+    SimpleExoPlayerView simpleExoPlayerView;
     @BindView(R.id.user_video_container)
     ListView userVideoContainer;
+
+    @BindString(R.string.app_name)
+    String appName;
 
     public VideoPlaylistFragment() {
         // Required empty public constructor
@@ -85,6 +105,7 @@ public class VideoPlaylistFragment extends Fragment {
         ButterKnife.bind(this, rootView);
         userVideoAdapter = new UserVideoAdapter(getContext(), userVideos);
         userVideoContainer.setAdapter(userVideoAdapter);
+        setupPlayer();
         return rootView;
     }
 
@@ -104,14 +125,40 @@ public class VideoPlaylistFragment extends Fragment {
                 new DefaultTrackSelector(videoTrackSelectionFactory);
         // 2. Create a default LoadControl
         LoadControl loadControl = new DefaultLoadControl();
-        // 3. Create the player
-        SimpleExoPlayer player =
-                ExoPlayerFactory.newSimpleInstance(getContext(), trackSelector, loadControl);
+        // 3. Create the videoPlayer
+        videoPlayer = ExoPlayerFactory.newSimpleInstance(getContext(), trackSelector, loadControl);
+        // Bind the videoPlayer to the view.
+        simpleExoPlayerView.setPlayer(videoPlayer);
+
+        VideoPlayerEventListener videoPlayerEventListener = new VideoPlayerEventListener();
+        videoPlayer.addListener(videoPlayerEventListener);
+    }
+
+    private void updatePlayer(List<UserVideo> userVideos) {
+        // Produces DataSource instances through which media data is loaded.
+        String userAgent = Util.getUserAgent(getContext(), appName);
+        DataSource.Factory dataSourceFactory = new DefaultDataSourceFactory(getContext(), userAgent);
+        // Produces Extractor instances for parsing the media data.
+        ExtractorsFactory extractorsFactory = new DefaultExtractorsFactory();
+        // This is the MediaSource representing the media to be played.
+        List<MediaSource> mediaSources = new ArrayList<>(userVideos.size());
+        for (UserVideo userVideo : userVideos) {
+            String videoUrl = userVideo.getVideoUrl();
+            Uri videoUri = Uri.parse(videoUrl);
+            MediaSource videoSource = new ExtractorMediaSource(videoUri,
+                    dataSourceFactory, extractorsFactory, null, null);
+            mediaSources.add(videoSource);
+        }
+        ConcatenatingMediaSource sequentialMediaSource = new ConcatenatingMediaSource(mediaSources.toArray(new MediaSource[mediaSources.size()]));
+        // Prepare the videoPlayer with the source.
+        videoPlayer.prepare(sequentialMediaSource);
     }
 
     @Override
     public void onDetach() {
         super.onDetach();
+        videoPlayer.release();
+        videoPlayer = null;
         app = null;
     }
 
@@ -126,6 +173,12 @@ public class VideoPlaylistFragment extends Fragment {
         UserVideoService userVideoService = app.provideUserVideoService();
         VideoPlaylistCallback videoPlaylistCallback = new VideoPlaylistCallback();
         userVideoService.getUserVideoListDataResponse(videoTag, 1).enqueue(videoPlaylistCallback);
+    }
+
+    @OnItemClick(R.id.user_video_container)
+    void resetPlayerUserVideoSequenceFromCurrent(int position) {
+        List<UserVideo> currentUpToLastUserVideos = userVideos.subList(position, userVideos.size());
+        updatePlayer(currentUpToLastUserVideos);
     }
 
     private void switchToEmptyState() {
@@ -146,13 +199,45 @@ public class VideoPlaylistFragment extends Fragment {
             userVideos.clear();
             userVideos.addAll(retrievedUserVideos);
             userVideoAdapter.notifyDataSetChanged();
+            updatePlayer(userVideos);
             switchToContentState();
         }
 
         @Override
         public void onFailure(Call<UserVideoListDataResponse> call, Throwable t) {
             Toast.makeText(getContext(), "Failure", Toast.LENGTH_LONG).show();
+            userVideos.clear();
+            userVideoAdapter.notifyDataSetChanged();
+            updatePlayer(userVideos);
             switchToEmptyState();
+        }
+    }
+
+    private class VideoPlayerEventListener implements ExoPlayer.EventListener {
+
+        @Override
+        public void onTimelineChanged(Timeline timeline, Object manifest) {
+        }
+
+        @Override
+        public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+            Toast.makeText(getContext(), "Next video playing", Toast.LENGTH_LONG).show();
+        }
+
+        @Override
+        public void onLoadingChanged(boolean isLoading) {
+        }
+
+        @Override
+        public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+        }
+
+        @Override
+        public void onPlayerError(ExoPlaybackException error) {
+        }
+
+        @Override
+        public void onPositionDiscontinuity() {
         }
     }
 }
