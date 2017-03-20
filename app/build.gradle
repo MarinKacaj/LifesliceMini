@@ -41,5 +41,8 @@ dependencies {
     compile 'io.karim:materialtabs:2.0.5'
     compile 'com.squareup.retrofit2:retrofit:2.2.0'
     compile 'com.squareup.retrofit2:converter-gson:2.2.0'
+    compile 'com.google.android.exoplayer:exoplayer:r2.3.0'
+    compile 'de.hdodenhof:circleimageview:2.1.0'
+    compile 'com.squareup.picasso:picasso:2.5.2'
     testCompile 'junit:junit:4.12'
 }
