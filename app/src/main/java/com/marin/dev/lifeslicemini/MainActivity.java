@@ -1,12 +1,11 @@
 package com.marin.dev.lifeslicemini;
 
+import android.os.Bundle;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 
 import com.marin.dev.lifeslicemini.adapter.MainFragmentPagerAdapter;
 import com.marin.dev.lifeslicemini.fragment.InputFragment;
-import com.marin.dev.lifeslicemini.fragment.VideoPlaylistFragment;
 
 import butterknife.BindString;
 import butterknife.BindView;
@@ -15,8 +14,6 @@ import io.karim.MaterialTabs;
 
 public class MainActivity extends AppCompatActivity implements
         InputFragment.OnVideoTagQueryTriggeredListener {
-
-    String videoTag = "";
 
     @BindView(R.id.tabs)
     MaterialTabs tabs;
@@ -44,8 +41,8 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onVideoTagQueryTriggered(String videoTag) {
-        this.videoTag = videoTag;
-        tabPager.setCurrentItem(1);
-        pagerAdapter.refreshVideoPlaylist(videoTag);
+        // this stinks
+        tabPager.setCurrentItem(1); // why should I know the index of the tab I want?!
+        pagerAdapter.refreshVideoPlaylist(videoTag); // one call per action should be enough, why this?!
     }
 }
