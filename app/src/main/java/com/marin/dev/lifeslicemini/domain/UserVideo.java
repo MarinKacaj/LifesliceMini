@@ -6,19 +6,19 @@ package com.marin.dev.lifeslicemini.domain;
  */
 public class UserVideo {
 
-    private String videoUrl;
+    private String videoLowURL;
     private String username;
-    private String avatarUrl;
+    private String thumbnailUrl;
 
-    public String getVideoUrl() {
-        return videoUrl;
+    public String getVideoLowURL() {
+        return videoLowURL;
     }
 
     public String getUsername() {
         return username;
     }
 
-    public String getAvatarUrl() {
-        return avatarUrl;
+    public String getThumbnailUrl() {
+        return thumbnailUrl;
     }
 }

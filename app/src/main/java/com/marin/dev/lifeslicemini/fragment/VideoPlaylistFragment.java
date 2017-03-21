@@ -141,7 +141,7 @@ public class VideoPlaylistFragment extends Fragment {
         // This is the MediaSource representing the media to be played.
         List<MediaSource> mediaSources = new ArrayList<>(userVideos.size());
         for (UserVideo userVideo : userVideos) {
-            String videoUrl = userVideo.getVideoUrl();
+            String videoUrl = userVideo.getVideoLowURL();
             Uri videoUri = Uri.parse(videoUrl);
             MediaSource videoSource = new ExtractorMediaSource(videoUri,
                     dataSourceFactory, extractorsFactory, null, null);

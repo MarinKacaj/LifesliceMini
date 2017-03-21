@@ -49,7 +49,7 @@ public class UserVideoAdapter extends ArrayAdapter<UserVideo> {
         }
 
         UserVideo userVideo = getItem(position);
-        String avatarUrl = userVideo.getAvatarUrl();
+        String avatarUrl = userVideo.getThumbnailUrl();
         String username = getItem(position).getUsername();
 
         Picasso.with(getContext()).load(avatarUrl).into(viewHolder.avatarView);
