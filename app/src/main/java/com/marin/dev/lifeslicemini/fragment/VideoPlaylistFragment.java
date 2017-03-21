@@ -4,9 +4,9 @@ import android.Manifest;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,7 +25,6 @@ import com.google.android.exoplayer2.extractor.ExtractorsFactory;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
-import com.google.android.exoplayer2.source.MergingMediaSource;
 import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
@@ -52,6 +51,7 @@ import butterknife.BindString;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnItemClick;
+import de.hdodenhof.circleimageview.CircleImageView;
 import permissions.dispatcher.NeedsPermission;
 import permissions.dispatcher.RuntimePermissions;
 import retrofit2.Call;
@@ -66,11 +66,6 @@ import retrofit2.Response;
 @RuntimePermissions
 public class VideoPlaylistFragment extends Fragment {
 
-    private LifesliceMiniApp app;
-    private UserVideoAdapter userVideoAdapter;
-    private List<UserVideo> userVideos = new ArrayList<>();
-    private SimpleExoPlayer videoPlayer;
-
     @BindView(R.id.empty_state)
     View emptyState;
     @BindView(R.id.content)
@@ -79,9 +74,15 @@ public class VideoPlaylistFragment extends Fragment {
     SimpleExoPlayerView simpleExoPlayerView;
     @BindView(R.id.user_video_container)
     ListView userVideoContainer;
-
     @BindString(R.string.app_name)
     String appName;
+    private LifesliceMiniApp app;
+    private UserVideoAdapter userVideoAdapter;
+    private List<UserVideo> userVideos = new ArrayList<>();
+    private SimpleExoPlayer videoPlayer;
+    private int previousVideoPosition = 0;
+    private int currentVideoPosition = 0;
+    private boolean isCurrentVideoPositionManuallyUpdated = false;
 
     public VideoPlaylistFragment() {
         // Required empty public constructor
@@ -116,18 +117,15 @@ public class VideoPlaylistFragment extends Fragment {
     }
 
     private void setupPlayer() {
-        // 1. Create a default TrackSelector
-        Handler mainHandler = new Handler();
         BandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
         TrackSelection.Factory videoTrackSelectionFactory =
                 new AdaptiveTrackSelection.Factory(bandwidthMeter);
         TrackSelector trackSelector =
                 new DefaultTrackSelector(videoTrackSelectionFactory);
-        // 2. Create a default LoadControl
         LoadControl loadControl = new DefaultLoadControl();
-        // 3. Create the videoPlayer
+
         videoPlayer = ExoPlayerFactory.newSimpleInstance(getContext(), trackSelector, loadControl);
-        // Bind the videoPlayer to the view.
+
         simpleExoPlayerView.setPlayer(videoPlayer);
 
         VideoPlayerEventListener videoPlayerEventListener = new VideoPlayerEventListener();
@@ -177,8 +175,27 @@ public class VideoPlaylistFragment extends Fragment {
 
     @OnItemClick(R.id.user_video_container)
     void resetPlayerUserVideoSequenceFromCurrent(int position) {
+        previousVideoPosition = currentVideoPosition;
+        currentVideoPosition = position;
+        isCurrentVideoPositionManuallyUpdated = true;
         List<UserVideo> currentUpToLastUserVideos = userVideos.subList(position, userVideos.size());
         updatePlayer(currentUpToLastUserVideos);
+    }
+
+    private void updateVideoRow(int position, boolean isPlaying) {
+        int firstVisiblePosition = userVideoContainer.getFirstVisiblePosition();
+        View rowView = userVideoContainer.getChildAt(position - firstVisiblePosition);
+
+        if (rowView != null) {
+            int avatarBorderColor;
+            if (isPlaying) {
+                avatarBorderColor = ContextCompat.getColor(getContext(), R.color.colorImageBorderPlaying);
+            } else {
+                avatarBorderColor = ContextCompat.getColor(getContext(), R.color.colorImageBorder);
+            }
+            CircleImageView avatarView = (CircleImageView) rowView.findViewById(R.id.user_avatar);
+            avatarView.setBorderColor(avatarBorderColor);
+        }
     }
 
     private void switchToEmptyState() {
@@ -200,6 +217,7 @@ public class VideoPlaylistFragment extends Fragment {
             userVideos.addAll(retrievedUserVideos);
             userVideoAdapter.notifyDataSetChanged();
             updatePlayer(userVideos);
+            isCurrentVideoPositionManuallyUpdated = true; // We're at zero
             switchToContentState();
         }
 
@@ -221,7 +239,14 @@ public class VideoPlaylistFragment extends Fragment {
 
         @Override
         public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
-            Toast.makeText(getContext(), "Next video playing", Toast.LENGTH_LONG).show();
+            updateVideoRow(previousVideoPosition, false);
+            if (isCurrentVideoPositionManuallyUpdated) {
+                isCurrentVideoPositionManuallyUpdated = false;
+            } else {
+                previousVideoPosition = currentVideoPosition;
+                currentVideoPosition++;
+            }
+            updateVideoRow(currentVideoPosition, true);
         }
 
         @Override
@@ -234,6 +259,7 @@ public class VideoPlaylistFragment extends Fragment {
 
         @Override
         public void onPlayerError(ExoPlaybackException error) {
+            Toast.makeText(getContext(), R.string.video_play_error_message, Toast.LENGTH_LONG).show();
         }
 
         @Override

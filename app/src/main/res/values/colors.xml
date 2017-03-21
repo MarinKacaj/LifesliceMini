@@ -4,6 +4,6 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="colorListItemText">#FF000000</color>
-    <color name="colorImageBorder">#FF00FFFF</color>
+    <color name="colorImageBorder">#00000000</color>
     <color name="colorImageBorderPlaying">#FFFF0000</color>
 </resources>

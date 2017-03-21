@@ -6,4 +6,5 @@
     <string name="second_tab_title">B</string>
 
     <string name="empty_video_playlist_message">No user videos</string>
+    <string name="video_play_error_message">Error playing video</string>
 </resources>

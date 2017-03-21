@@ -29,6 +29,9 @@ public class UserVideoAdapter extends ArrayAdapter<UserVideo> {
     @LayoutRes
     private final static int ITEM_LAYOUT_RESOURCE = R.layout.video_user_item;
 
+    private int lastPlayingPosition = 0;
+    private int currentPlayingPosition = 0;
+
     public UserVideoAdapter(@NonNull Context context, @NonNull List<UserVideo> userVideos) {
         super(context, ITEM_LAYOUT_RESOURCE, userVideos);
     }
