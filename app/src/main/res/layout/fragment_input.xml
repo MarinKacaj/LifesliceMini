@@ -6,7 +6,6 @@
     tools:context="com.marin.dev.lifeslicemini.fragment.InputFragment">
 
     <EditText
-        android:text="example"
         android:id="@+id/tag_query"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
